@@ -91,6 +91,7 @@ function nextTurn(room) {
     previewPiece,
     board: room.board,
     scores: room.scores,
+    linesCleared: room.lastLinesCleared || 0,
     turnTimeLimit: room.turnTimeLimit,
   });
 
@@ -178,6 +179,7 @@ io.on('connection', (socket) => {
 
     // ライン消去
     const linesCleared = clearLines(room.board);
+    room.lastLinesCleared = linesCleared;
     room.scores[socket.data.playerIndex] += SCORES[linesCleared] || 0;
 
     // ゲームオーバー判定（一番上の行にブロックがあるか）

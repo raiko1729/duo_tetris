@@ -253,6 +253,59 @@
 
 <script>
 // ========== 定数 ==========
+// ========== 効果音 ==========
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(type) {
+  const ctx = audioCtx;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.connect(g);
+  g.connect(ctx.destination);
+
+  if (type === 'move') {
+    o.frequency.setValueAtTime(220, ctx.currentTime);
+    g.gain.setValueAtTime(0.05, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+    o.start(); o.stop(ctx.currentTime + 0.05);
+
+  } else if (type === 'drop') {
+    o.type = 'square';
+    o.frequency.setValueAtTime(150, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.1);
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    o.start(); o.stop(ctx.currentTime + 0.15);
+
+  } else if (type === 'clear') {
+    [523, 659, 784, 1047].forEach((freq, i) => {
+      const o2 = ctx.createOscillator();
+      const g2 = ctx.createGain();
+      o2.connect(g2); g2.connect(ctx.destination);
+      o2.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.07);
+      g2.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.07);
+      g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.07 + 0.15);
+      o2.start(ctx.currentTime + i * 0.07);
+      o2.stop(ctx.currentTime + i * 0.07 + 0.15);
+    });
+    return;
+
+  } else if (type === 'gameover') {
+    [400, 300, 200, 100].forEach((freq, i) => {
+      const o2 = ctx.createOscillator();
+      const g2 = ctx.createGain();
+      o2.type = 'sawtooth';
+      o2.connect(g2); g2.connect(ctx.destination);
+      o2.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.15);
+      g2.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);
+      g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.2);
+      o2.start(ctx.currentTime + i * 0.15);
+      o2.stop(ctx.currentTime + i * 0.15 + 0.2);
+    });
+    return;
+  }
+  o.start(); o.stop(ctx.currentTime + 0.1);
+}
 const COLS = 10, ROWS = 20;
 const CELL = 30;
 const COLORS = {
@@ -458,6 +511,7 @@ document.addEventListener('keydown', (e) => {
     doHardDrop();
     return;
   }
+  playSound('move');
   if (isMyTurn && currentPiece) {
     socket.emit('pieceMove', {
       type: currentPiece.type,
@@ -491,6 +545,7 @@ function resetInactivityTimer() {
 
 function doHardDrop() {
   if (!isMyTurn || !currentPiece) return;
+  playSound('drop');
   clearTimeout(inactivityTimer);
   const newBoard = placePiece(currentPiece, board);
   isMyTurn = false;
@@ -561,6 +616,7 @@ function connect() {
 
 function applyTurnData(data) {
   board = data.board;
+  if (data.linesCleared > 0) playSound('clear');
   turnTimeLimit = data.turnTimeLimit;
   isMyTurn = data.activePlayerId === socket.id;
   document.getElementById('score-me').textContent = data.scores[myIndex];
@@ -580,6 +636,7 @@ function applyTurnData(data) {
 }
 
 function showOverlay(title, msg) {
+  playSound('gameover');
   document.getElementById('overlay-title').textContent = title;
   document.getElementById('overlay-msg').textContent = msg;
   document.getElementById('overlay').classList.add('active');
