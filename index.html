@@ -270,7 +270,7 @@ function playSound(type) {
 
   if (type === 'move') {
     o.frequency.setValueAtTime(220, ctx.currentTime);
-    g.gain.setValueAtTime(0.05, ctx.currentTime);
+    g.gain.setValueAtTime(0.2, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
     o.start(); o.stop(ctx.currentTime + 0.05);
 
@@ -278,7 +278,7 @@ function playSound(type) {
     o.type = 'square';
     o.frequency.setValueAtTime(150, ctx.currentTime);
     o.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.1);
-    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.setValueAtTime(0.4, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
     o.start(); o.stop(ctx.currentTime + 0.15);
 
@@ -288,7 +288,7 @@ function playSound(type) {
       const g2 = ctx.createGain();
       o2.connect(g2); g2.connect(ctx.destination);
       o2.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.07);
-      g2.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.07);
+      g2.gain.setValueAtTime(0.4, ctx.currentTime + i * 0.07);
       g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.07 + 0.15);
       o2.start(ctx.currentTime + i * 0.07);
       o2.stop(ctx.currentTime + i * 0.07 + 0.15);
@@ -302,7 +302,7 @@ function playSound(type) {
       o2.type = 'sawtooth';
       o2.connect(g2); g2.connect(ctx.destination);
       o2.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.15);
-      g2.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);
+      g2.gain.setValueAtTime(0.4, ctx.currentTime + i * 0.15);
       g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.2);
       o2.start(ctx.currentTime + i * 0.15);
       o2.stop(ctx.currentTime + i * 0.15 + 0.2);
