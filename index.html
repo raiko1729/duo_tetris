@@ -499,7 +499,7 @@ function doHardDrop() {
 
 // ========== Socket.io ==========
 function connect() {
-  const SERVER_URL = 'http://localhost:3001';
+  const SERVER_URL = window.location.origin;
 
   socket = io(SERVER_URL);
 
