@@ -564,7 +564,7 @@ function applyTurnData(data) {
   turnTimeLimit = data.turnTimeLimit;
   isMyTurn = data.activePlayerId === socket.id;
   document.getElementById('score-me').textContent = data.scores[myIndex];
-  ocument.getElementById('score-opp').textContent = data.scores[1 - myIndex];
+  document.getElementById('score-opp').textContent = data.scores[1 - myIndex];
   opponentGhostPiece = null;
 
   if (isMyTurn) {

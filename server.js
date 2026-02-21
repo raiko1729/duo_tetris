@@ -165,12 +165,6 @@ io.on('connection', (socket) => {
     if (opponentId) io.to(opponentId).emit('opponentPieceMove', data);
   });
   
-  socket.on('pieceMove', (data) => {
-    const room = rooms[socket.data.roomId];
-    if (!room) return;
-    const opponentId = room.players.find(id => id !== socket.id);
-    if (opponentId) io.to(opponentId).emit('opponentPieceMove', data);
-  });
   // ミノが確定したとき（ハードドロップ完了）
   socket.on('piecePlaced', ({ board }) => {
     const room = rooms[socket.data.roomId];
