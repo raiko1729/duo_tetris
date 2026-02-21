@@ -191,7 +191,7 @@ io.on('connection', (socket) => {
 
     if (isGameOver) {
       room.gameOver = true;
-      io.to(room.roomId).emit('gameOver', { score: room.score, board: room.board });
+      io.to(room.roomId).emit('gameOver', { scores: room.scores, board: room.board });
       return;
     }
 

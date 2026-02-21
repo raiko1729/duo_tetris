@@ -543,10 +543,10 @@ function connect() {
     }
   });
 
-  socket.on('gameOver', ({ score, board: finalBoard }) => {
+  socket.on('gameOver', ({ scores, board: finalBoard }) => {
     board = finalBoard;
     drawBoard();
-    showOverlay('GAME OVER', `SCORE: ${score}`);
+    showOverlay('GAME OVER', `YOU: ${scores[myIndex]}  OPP: ${scores[1 - myIndex]}`);
   });
 
   socket.on('opponentLeft', () => {
