@@ -190,7 +190,19 @@
 
 <div id="lobby">
   <p style="color:#666; font-size:0.85rem; letter-spacing:0.1em;">交互に1ミノずつ操作する 2人協力テトリス</p>
-  <button id="btn-join">FIND MATCH</button>
+  <button id="btn-create">ルームを作る</button>
+  <div id="room-code-display" style="display:none; text-align:center;">
+    <div style="color:#666; font-size:0.7rem; letter-spacing:0.15em; margin-bottom:0.3rem;">ROOM CODE</div>
+    <div id="room-code-text" style="font-family:'Orbitron',sans-serif; font-size:2rem; color:var(--accent); letter-spacing:0.3em;"></div>
+    <div style="color:#666; font-size:0.75rem; margin-top:0.3rem;">友達にこのコードを伝えてください</div>
+  </div>
+  <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.5rem;">
+    <input id="input-code" type="text" maxlength="4" placeholder="CODE"
+      style="font-family:'Orbitron',monospace; font-size:1.2rem; letter-spacing:0.3em; width:100px;
+             background:transparent; border:2px solid var(--border); color:var(--accent);
+             padding:0.5rem; text-align:center; text-transform:uppercase; outline:none;">
+    <button id="btn-join">JOIN</button>
+  </div>
   <div id="status"></div>
 </div>
 
@@ -495,12 +507,21 @@ function connect() {
     document.getElementById('status').textContent = 'CONNECTED';
   });
 
-  socket.on('joined', ({ playerIndex }) => {
+  socket.on('joined', ({ playerIndex, roomCode }) => {
     myIndex = playerIndex;
     const label = document.getElementById('player-label');
     label.textContent = playerIndex === 0 ? 'P1' : 'P2';
     label.style.color = playerIndex === 0 ? 'var(--p1)' : 'var(--p2)';
+    if (playerIndex === 0) {
+      document.getElementById('room-code-text').textContent = roomCode;
+      document.getElementById('room-code-display').style.display = 'block';
+    }
     document.getElementById('status').textContent = 'WAITING FOR OPPONENT...';
+  });
+
+  socket.on('joinError', (msg) => {
+    document.getElementById('status').textContent = msg;
+    document.getElementById('btn-join').disabled = false;
   });
 
   socket.on('gameStart', (data) => {
@@ -561,11 +582,21 @@ function showOverlay(title, msg) {
 }
 
 // ========== ボタン ==========
+document.getElementById('btn-create').addEventListener('click', () => {
+  document.getElementById('btn-create').disabled = true;
+  document.getElementById('status').textContent = 'CONNECTING...';
+  connect();
+  socket.emit('createRoom');
+});
+
+// joined イベントでルームコード表示を追加
 document.getElementById('btn-join').addEventListener('click', () => {
+  const code = document.getElementById('input-code').value.trim().toUpperCase();
+  if (code.length !== 4) { document.getElementById('status').textContent = 'コードは4文字です'; return; }
   document.getElementById('btn-join').disabled = true;
   document.getElementById('status').textContent = 'CONNECTING...';
   connect();
-  socket.emit('joinGame');
+  socket.emit('joinRoom', { code });
 });
 
 document.getElementById('btn-restart').addEventListener('click', () => {

@@ -30,6 +30,13 @@ function generateBag(rng) {
 // ゲーム状態
 const rooms = {};
 
+function generateRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
 function createRoom(roomId) {
   const seed = Math.floor(Math.random() * 1000000);
   const rng = mulberry32(seed);
@@ -105,44 +112,46 @@ const SCORES = [0, 100, 300, 500, 800];
 io.on('connection', (socket) => {
   console.log('connected:', socket.id);
 
-  // マッチング（簡易: 待機中のルームに入れる）
-  socket.on('joinGame', () => {
-    let room = Object.values(rooms).find(r => r.players.length === 1 && !r.gameOver);
+  // マッチング
+  socket.on('createRoom', () => {
+    let code;
+    do { code = generateRoomCode(); } while (rooms[code]);
+    const room = createRoom(code);
+    rooms[code] = room;
+    room.players.push(socket.id);
+    socket.join(code);
+    socket.data.roomId = code;
+    socket.data.playerIndex = 0;
+    socket.emit('joined', { playerIndex: 0, roomId: code, roomCode: code });
+  });
 
-    if (!room) {
-      const roomId = 'room_' + socket.id;
-      room = createRoom(roomId);
-      rooms[roomId] = room;
-    }
+  socket.on('joinRoom', ({ code }) => {
+    const room = rooms[code.toUpperCase()];
+    if (!room) { socket.emit('joinError', 'ルームが見つかりません'); return; }
+    if (room.players.length >= 2) { socket.emit('joinError', 'ルームが満員です'); return; }
+    if (room.gameOver) { socket.emit('joinError', 'ゲームが終了しています'); return; }
 
     room.players.push(socket.id);
-    socket.join(room.roomId);
-    socket.data.roomId = room.roomId;
-    socket.data.playerIndex = room.players.length - 1;
+    socket.join(code);
+    socket.data.roomId = code;
+    socket.data.playerIndex = 1;
+    socket.emit('joined', { playerIndex: 1, roomId: code, roomCode: code });
 
-    socket.emit('joined', {
-      playerIndex: socket.data.playerIndex,
-      roomId: room.roomId,
+    // 2人揃ったのでゲーム開始
+    const firstPiece = getNextPiece(room);
+    const previewPiece = room.pieceQueue[room.pieceIndex];
+    io.to(code).emit('gameStart', {
+      currentTurn: room.currentTurn,
+      activePlayerId: room.players[room.currentTurn],
+      currentPiece: firstPiece,
+      previewPiece,
+      board: room.board,
+      score: room.score,
+      turnTimeLimit: room.turnTimeLimit,
     });
-
-    if (room.players.length === 2) {
-      // ゲーム開始
-      const firstPiece = getNextPiece(room);
-      const previewPiece = room.pieceQueue[room.pieceIndex];
-
-      io.to(room.roomId).emit('gameStart', {
-        currentTurn: room.currentTurn,
-        activePlayerId: room.players[room.currentTurn],
-        currentPiece: firstPiece,
-        previewPiece,
-        board: room.board,
-        score: room.score,
-        turnTimeLimit: room.turnTimeLimit,
-      });
-
-      startTurnTimer(room);
-    }
+    startTurnTimer(room);
   });
+
   // 相手の操縦しているミノの位置を送る
   socket.on('pieceMove', (data) => {
     const room = rooms[socket.data.roomId];
