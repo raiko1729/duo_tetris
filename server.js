@@ -55,7 +55,7 @@ function createRoom(roomId) {
     pieceIndex: 0,
     seed,
     rng,
-    score: 0,
+    scores: [0, 0],
     gameOver: false,
     turnTimeLimit: 15000, // 15秒
     turnTimer: null,
@@ -90,7 +90,7 @@ function nextTurn(room) {
     currentPiece: nextPiece,
     previewPiece,
     board: room.board,
-    score: room.score,
+    scores: room.scores,
     turnTimeLimit: room.turnTimeLimit,
   });
 
@@ -150,7 +150,7 @@ io.on('connection', (socket) => {
       currentPiece: firstPiece,
       previewPiece,
       board: room.board,
-      score: room.score,
+      scores: room.scores,
       turnTimeLimit: room.turnTimeLimit,
     });
     startTurnTimer(room);
@@ -184,7 +184,7 @@ io.on('connection', (socket) => {
 
     // ライン消去
     const linesCleared = clearLines(room.board);
-    room.score += SCORES[linesCleared] || 0;
+    room.scores[socket.data.playerIndex] += SCORES[linesCleared] || 0;
 
     // ゲームオーバー判定（一番上の行にブロックがあるか）
     const isGameOver = room.board[0].some(cell => cell !== 0);

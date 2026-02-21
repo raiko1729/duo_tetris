@@ -210,7 +210,10 @@
   <div class="side-panel">
     <div class="panel-box">
       <div class="panel-label">SCORE</div>
-      <div class="panel-value" id="score">0</div>
+      <div style="font-size:0.75rem; color:#666; margin-bottom:2px;">YOU</div>
+      <div class="panel-value" id="score-me">0</div>
+      <div style="font-size:0.75rem; color:#666; margin-top:6px; margin-bottom:2px;">OPP</div>
+      <div class="panel-value" id="score-opp" style="font-size:1rem;">0</div>
     </div>
     <div class="panel-box">
       <div class="panel-label">YOU</div>
@@ -560,7 +563,8 @@ function applyTurnData(data) {
   board = data.board;
   turnTimeLimit = data.turnTimeLimit;
   isMyTurn = data.activePlayerId === socket.id;
-  document.getElementById('score').textContent = data.score;
+  document.getElementById('score-me').textContent = data.scores[myIndex];
+  ocument.getElementById('score-opp').textContent = data.scores[1 - myIndex];
   opponentGhostPiece = null;
 
   if (isMyTurn) {
