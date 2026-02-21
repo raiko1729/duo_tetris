@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DUO TETRIS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --panel: #12121a;
+    --border: #1e1e2e;
+    --p1: #00f5ff;
+    --p2: #ff2d78;
+    --accent: #f5c400;
+    --text: #c0c0d0;
+    --grid: #16161f;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.015) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.015) 40px);
+    pointer-events: none;
+  }
+
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2rem;
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(90deg, var(--p1), var(--p2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: none;
+  }
+
+  #lobby, #game {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  #game { display: none; flex-direction: row; gap: 2rem; align-items: flex-start; }
+
+  button {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    padding: 0.75rem 2rem;
+    background: transparent;
+    border: 2px solid var(--p1);
+    color: var(--p1);
+    cursor: pointer;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  button:hover {
+    background: var(--p1);
+    color: var(--bg);
+  }
+
+  #status {
+    font-size: 0.9rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    min-height: 1.5rem;
+  }
+
+  /* ゲーム画面レイアウト */
+  .side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 120px;
+  }
+
+  .panel-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 0.75rem;
+  }
+
+  .panel-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: #666;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+  }
+
+  .panel-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.4rem;
+    color: var(--accent);
+  }
+
+  /* 盤面 */
+  canvas {
+    display: block;
+    border: 1px solid var(--border);
+    image-rendering: pixelated;
+  }
+
+  /* ターン表示 */
+  #turn-indicator {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.15em;
+    padding: 0.5rem 1rem;
+    border: 1px solid;
+    text-align: center;
+    transition: all 0.3s;
+  }
+  #turn-indicator.my-turn {
+    border-color: var(--p1);
+    color: var(--p1);
+    box-shadow: 0 0 12px rgba(0,245,255,0.3);
+  }
+  #turn-indicator.opponent-turn {
+    border-color: var(--p2);
+    color: var(--p2);
+  }
+
+  /* タイマーバー */
+  #timer-bar-wrap {
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    margin-top: 4px;
+  }
+  #timer-bar {
+    height: 100%;
+    background: var(--p1);
+    transition: width 0.1s linear, background 0.5s;
+    width: 100%;
+  }
+
+  /* 次のミノプレビュー */
+  #preview-canvas {
+    border: 1px solid var(--border);
+    display: block;
+  }
+
+  /* オーバーレイ */
+  #overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.85);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1.5rem;
+    z-index: 100;
+  }
+  #overlay.active { display: flex; }
+  #overlay h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2rem;
+    color: var(--accent);
+  }
+  #overlay p { color: var(--text); letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+
+<h1>DUO TETRIS</h1>
+
+<div id="lobby">
+  <p style="color:#666; font-size:0.85rem; letter-spacing:0.1em;">交互に1ミノずつ操作する 2人協力テトリス</p>
+  <button id="btn-join">FIND MATCH</button>
+  <div id="status"></div>
+</div>
+
+<div id="game">
+  <div class="side-panel">
+    <div class="panel-box">
+      <div class="panel-label">SCORE</div>
+      <div class="panel-value" id="score">0</div>
+    </div>
+    <div class="panel-box">
+      <div class="panel-label">YOU</div>
+      <div id="player-label" style="font-size:0.85rem; color: var(--p1)">P1</div>
+    </div>
+    <div class="panel-box">
+      <div class="panel-label">TURN</div>
+      <div id="turn-indicator" class="opponent-turn">WAITING</div>
+      <div id="timer-bar-wrap"><div id="timer-bar"></div></div>
+    </div>
+  </div>
+
+  <div>
+    <canvas id="board-canvas" width="300" height="600"></canvas>
+  </div>
+
+  <div class="side-panel">
+    <div class="panel-box">
+      <div class="panel-label">NEXT</div>
+      <canvas id="preview-canvas" width="100" height="100"></canvas>
+    </div>
+    <div class="panel-box" style="font-size:0.7rem; color:#555; line-height:1.8">
+      <div class="panel-label">CONTROLS</div>
+      ← → &nbsp; 移動<br>
+      ↑ &nbsp;&nbsp;&nbsp; 回転<br>
+      ↓ &nbsp;&nbsp;&nbsp; ソフトドロップ<br>
+      SPACE ハードドロップ
+    </div>
+  </div>
+</div>
+
+<div id="overlay">
+  <h2 id="overlay-title">GAME OVER</h2>
+  <p id="overlay-msg"></p>
+  <button id="btn-restart">PLAY AGAIN</button>
+</div>
+
+<script>
+// ========== 定数 ==========
+const COLS = 10, ROWS = 20;
+const CELL = 30;
+const COLORS = {
+  I: '#00f5ff', O: '#f5c400', T: '#c800ff',
+  S: '#00ff88', Z: '#ff2d78', J: '#0066ff', L: '#ff8c00',
+  ghost: 'rgba(255,255,255,0.12)',
+};
+
+const SHAPES = {
+  I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+  O: [[1,1],[1,1]],
+  T: [[0,1,0],[1,1,1],[0,0,0]],
+  S: [[0,1,1],[1,1,0],[0,0,0]],
+  Z: [[1,1,0],[0,1,1],[0,0,0]],
+  J: [[1,0,0],[1,1,1],[0,0,0]],
+  L: [[0,0,1],[1,1,1],[0,0,0]],
+};
+
+// ========== 状態 ==========
+let socket;
+let myIndex = -1;
+let isMyTurn = false;
+let board = [];
+let currentPiece = null; // { type, x, y, rotation }
+let turnTimeLimit = 15000;
+let turnStartTime = 0;
+let timerRAF = null;
+let opponentGhostPiece = null;
+
+// ========== Canvas ==========
+const boardCanvas = document.getElementById('board-canvas');
+const bctx = boardCanvas.getContext('2d');
+const previewCanvas = document.getElementById('preview-canvas');
+const pctx = previewCanvas.getContext('2d');
+
+// ========== ミノ操作ユーティリティ ==========
+function getShape(type, rotation) {
+  let s = SHAPES[type];
+  for (let i = 0; i < rotation; i++) s = rotateMatrix(s);
+  return s;
+}
+
+function rotateMatrix(matrix) {
+  const N = matrix.length;
+  return matrix[0].map((_, c) => matrix.map((_, r) => matrix[N-1-r][c]));
+}
+
+function isValid(shape, x, y, b) {
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (!shape[r][c]) continue;
+      const nr = r + y, nc = c + x;
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) return false;
+      if (b[nr][nc]) return false;
+    }
+  }
+  return true;
+}
+
+function hardDropY(piece, b) {
+  const shape = getShape(piece.type, piece.rotation);
+  let y = piece.y;
+  while (isValid(shape, piece.x, y + 1, b)) y++;
+  return y;
+}
+
+function placePiece(piece, b) {
+  const shape = getShape(piece.type, piece.rotation);
+  const nb = b.map(r => [...r]);
+  const dy = hardDropY(piece, b);
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (shape[r][c]) nb[dy + r][piece.x + c] = piece.type;
+    }
+  }
+  return nb;
+}
+
+function spawnPiece(type) {
+  return { type, x: 3, y: 0, rotation: 0 };
+}
+
+// ========== 描画 ==========
+function drawBoard() {
+  bctx.fillStyle = '#0a0a0f';
+  bctx.fillRect(0, 0, boardCanvas.width, boardCanvas.height);
+
+  // グリッド線
+  bctx.strokeStyle = '#16161f';
+  bctx.lineWidth = 1;
+  for (let r = 0; r <= ROWS; r++) {
+    bctx.beginPath(); bctx.moveTo(0, r * CELL); bctx.lineTo(COLS * CELL, r * CELL); bctx.stroke();
+  }
+  for (let c = 0; c <= COLS; c++) {
+    bctx.beginPath(); bctx.moveTo(c * CELL, 0); bctx.lineTo(c * CELL, ROWS * CELL); bctx.stroke();
+  }
+
+  // 固定ブロック
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r] && board[r][c]) {
+        drawCell(bctx, c, r, COLORS[board[r][c]] || '#fff');
+      }
+    }
+  }
+
+  // 相手のゴースト表示
+  if (opponentGhostPiece && !isMyTurn) {
+    const shape = getShape(opponentGhostPiece.type, opponentGhostPiece.rotation);
+    const ghostY = hardDropY(opponentGhostPiece, board);
+    for (let r = 0; r < shape.length; r++)
+      for (let c = 0; c < shape[r].length; c++)
+        if (shape[r][c]) drawCell(bctx, opponentGhostPiece.x + c, ghostY + r, 'rgba(255,45,120,0.25)');
+  }
+
+  // 現在のミノ（自分のターンのみ表示）
+  if (currentPiece && isMyTurn) {
+    const shape = getShape(currentPiece.type, currentPiece.rotation);
+    const ghostY = hardDropY(currentPiece, board);
+
+    // ゴースト
+    for (let r = 0; r < shape.length; r++)
+      for (let c = 0; c < shape[r].length; c++)
+        if (shape[r][c]) drawCell(bctx, currentPiece.x + c, ghostY + r, COLORS.ghost);
+
+    // 実体
+    for (let r = 0; r < shape.length; r++)
+      for (let c = 0; c < shape[r].length; c++)
+        if (shape[r][c]) drawCell(bctx, currentPiece.x + c, currentPiece.y + r, COLORS[currentPiece.type]);
+  }
+}
+
+function drawCell(ctx, c, r, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
+  // ハイライト
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, 4);
+}
+
+function drawPreview(type) {
+  pctx.fillStyle = '#12121a';
+  pctx.fillRect(0, 0, 100, 100);
+  if (!type) return;
+  const shape = SHAPES[type];
+  const color = COLORS[type];
+  const cellSize = 20;
+  const offX = Math.floor((5 - shape[0].length) / 2);
+  const offY = Math.floor((5 - shape.length) / 2);
+  for (let r = 0; r < shape.length; r++)
+    for (let c = 0; c < shape[r].length; c++)
+      if (shape[r][c]) {
+        pctx.fillStyle = color;
+        pctx.fillRect((offX + c) * cellSize + 1, (offY + r) * cellSize + 1, cellSize - 2, cellSize - 2);
+      }
+}
+
+// ========== タイマーUI ==========
+function startTimerUI() {
+  turnStartTime = Date.now();
+  function tick() {
+    const elapsed = Date.now() - turnStartTime;
+    const ratio = Math.max(0, 1 - elapsed / turnTimeLimit);
+    const bar = document.getElementById('timer-bar');
+    bar.style.width = (ratio * 100) + '%';
+    bar.style.background = ratio > 0.3 ? 'var(--p1)' : 'var(--p2)';
+    if (ratio > 0) timerRAF = requestAnimationFrame(tick);
+  }
+  cancelAnimationFrame(timerRAF);
+  tick();
+}
+
+// ========== ターン更新UI ==========
+function updateTurnUI() {
+  const indicator = document.getElementById('turn-indicator');
+  if (isMyTurn) {
+    indicator.textContent = 'YOUR TURN';
+    indicator.className = 'my-turn';
+  } else {
+    indicator.textContent = 'OPPONENT';
+    indicator.className = 'opponent-turn';
+  }
+  startTimerUI();
+}
+
+// ========== キーボード操作 ==========
+document.addEventListener('keydown', (e) => {
+  if (!isMyTurn || !currentPiece) return;
+  const shape = getShape(currentPiece.type, currentPiece.rotation);
+
+  if (e.key === 'ArrowLeft') {
+    if (isValid(shape, currentPiece.x - 1, currentPiece.y, board)) currentPiece.x--;
+  } else if (e.key === 'ArrowRight') {
+    if (isValid(shape, currentPiece.x + 1, currentPiece.y, board)) currentPiece.x++;
+  } else if (e.key === 'ArrowDown') {
+    if (isValid(shape, currentPiece.x, currentPiece.y + 1, board)) currentPiece.y++;
+  } else if (e.key === 'ArrowUp') {
+    const newRot = (currentPiece.rotation + 1) % 4;
+    const newShape = getShape(currentPiece.type, newRot);
+    if (isValid(newShape, currentPiece.x, currentPiece.y, board)) currentPiece.rotation = newRot;
+  } else if (e.key === ' ') {
+    e.preventDefault();
+    doHardDrop();
+    return;
+  }
+  if (isMyTurn && currentPiece) {
+    socket.emit('pieceMove', {
+      type: currentPiece.type,
+      x: currentPiece.x,
+      y: currentPiece.y,
+      rotation: currentPiece.rotation,
+    });
+  }
+  drawBoard();
+
+  // 着地判定：これ以上下がれないなら0.5秒タイマー起動
+  if (isMyTurn && currentPiece) {
+    const shape = getShape(currentPiece.type, currentPiece.rotation);
+    const isLanded = !isValid(shape, currentPiece.x, currentPiece.y + 1, board);
+    if (isLanded) {
+      resetInactivityTimer();
+    } else {
+      clearTimeout(inactivityTimer); // 浮いてる間はタイマーリセット
+    }
+  }
+});
+
+let inactivityTimer = null;
+
+function resetInactivityTimer() {
+  clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(() => {
+    if (isMyTurn && currentPiece) doHardDrop();
+  }, 500);
+}
+
+function doHardDrop() {
+  if (!isMyTurn || !currentPiece) return;
+  clearTimeout(inactivityTimer);
+  const newBoard = placePiece(currentPiece, board);
+  isMyTurn = false;
+  currentPiece = null;
+  socket.emit('piecePlaced', { board: newBoard });
+  board = newBoard;
+  drawBoard();
+}
+
+// ========== Socket.io ==========
+function connect() {
+  const SERVER_URL = 'http://localhost:3001';
+
+  socket = io(SERVER_URL);
+
+  socket.on('connect', () => {
+    document.getElementById('status').textContent = 'CONNECTED';
+  });
+
+  socket.on('joined', ({ playerIndex }) => {
+    myIndex = playerIndex;
+    const label = document.getElementById('player-label');
+    label.textContent = playerIndex === 0 ? 'P1' : 'P2';
+    label.style.color = playerIndex === 0 ? 'var(--p1)' : 'var(--p2)';
+    document.getElementById('status').textContent = 'WAITING FOR OPPONENT...';
+  });
+
+  socket.on('gameStart', (data) => {
+    document.getElementById('lobby').style.display = 'none';
+    document.getElementById('game').style.display = 'flex';
+    applyTurnData(data);
+  });
+
+  socket.on('turnChanged', (data) => {
+    applyTurnData(data);
+  });
+
+  socket.on('turnTimeout', ({ playerIndex }) => {
+    if (playerIndex === myIndex && isMyTurn) {
+      doHardDrop();
+    }
+  });
+
+  socket.on('gameOver', ({ score, board: finalBoard }) => {
+    board = finalBoard;
+    drawBoard();
+    showOverlay('GAME OVER', `SCORE: ${score}`);
+  });
+
+  socket.on('opponentLeft', () => {
+    showOverlay('OPPONENT LEFT', 'The other player disconnected.');
+  });
+  
+  socket.on('opponentPieceMove', (data) => {
+    opponentGhostPiece = data;
+    drawBoard();
+  });
+}
+
+function applyTurnData(data) {
+  board = data.board;
+  turnTimeLimit = data.turnTimeLimit;
+  isMyTurn = data.activePlayerId === socket.id;
+  document.getElementById('score').textContent = data.score;
+  opponentGhostPiece = null;
+
+  if (isMyTurn) {
+    currentPiece = spawnPiece(data.currentPiece);
+    drawPreview(data.previewPiece);
+  } else {
+    currentPiece = null;
+    drawPreview(data.currentPiece); // 相手が操作中のミノをネクスト枠に表示
+  }
+
+  updateTurnUI();
+  drawBoard();
+}
+
+function showOverlay(title, msg) {
+  document.getElementById('overlay-title').textContent = title;
+  document.getElementById('overlay-msg').textContent = msg;
+  document.getElementById('overlay').classList.add('active');
+}
+
+// ========== ボタン ==========
+document.getElementById('btn-join').addEventListener('click', () => {
+  document.getElementById('btn-join').disabled = true;
+  document.getElementById('status').textContent = 'CONNECTING...';
+  connect();
+  socket.emit('joinGame');
+});
+
+document.getElementById('btn-restart').addEventListener('click', () => {
+  location.reload();
+});
+
+// 初期描画
+board = Array(20).fill(null).map(() => Array(10).fill(0));
+drawBoard();
+drawPreview(null);
+</script>
+</body>
+</html>
