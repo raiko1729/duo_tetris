@@ -254,10 +254,15 @@
 <script>
 // ========== 定数 ==========
 // ========== 効果音 ==========
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
 
 function playSound(type) {
-  const ctx = audioCtx;
+  const ctx = getAudioCtx();
   const o = ctx.createOscillator();
   const g = ctx.createGain();
   o.connect(g);
