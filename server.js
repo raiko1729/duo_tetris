@@ -86,7 +86,7 @@ function nextTurn(room) {
     // 一番上にあるブロックの行を探す
     let topRow = 19;
     for (let r = 0; r < 20; r++) {
-      if (room.board[r].some(cell => cell !== 0)) {
+      if (room.board[r].some(cell => cell !== 0 && cell !== 'X')) {
         topRow = r;
         break;
       }
