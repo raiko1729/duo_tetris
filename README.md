@@ -21,6 +21,8 @@ npm run dev   # nodemon使用（開発時）
 npm start
 ```
 
+あとでhttps://duo-tetris.onrender.comに修正
+
 ### クライアント
 `client/index.html` をブラウザで2タブ開く。  
 （サーバーのCORSはすべて許可しているので、file://で開いてもOK）

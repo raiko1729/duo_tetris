@@ -59,6 +59,7 @@ function createRoom(roomId) {
     gameOver: false,
     turnTimeLimit: 15000, // 15秒
     turnTimer: null,
+    turnCount: 0,
   };
 }
 
@@ -80,6 +81,15 @@ function startTurnTimer(room) {
 }
 
 function nextTurn(room) {
+  room.turnCount++;
+  if (room.turnCount % 3 === 0) {
+    // お邪魔マスを1つランダムに追加
+    const col = Math.floor(Math.random() * 10);
+    const row = Math.floor(Math.random() * 20);
+    if (!room.board[row][col]) {
+      room.board[row][col] = 'X'; // お邪魔マスの識別子
+    }
+  }
   room.currentTurn = 1 - room.currentTurn;
   const nextPiece = getNextPiece(room);
   const previewPiece = room.pieceQueue[room.pieceIndex]; // 次の次
