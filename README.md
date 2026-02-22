@@ -21,7 +21,7 @@ npm run dev   # nodemon使用（開発時）
 npm start
 ```
 
-あとでhttps://duo-tetris.onrender.comに修正
+あとで`https://duo-tetris.onrender.com`に修正
 
 ### クライアント
 `client/index.html` をブラウザで2タブ開く。  

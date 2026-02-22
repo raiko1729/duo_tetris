@@ -83,11 +83,14 @@ function startTurnTimer(room) {
 function nextTurn(room) {
   room.turnCount++;
   if (room.turnCount % 3 === 0) {
-    // お邪魔マスを1つランダムに追加
-    const col = Math.floor(Math.random() * 10);
-    const row = Math.floor(Math.random() * 20);
-    if (!room.board[row][col]) {
-      room.board[row][col] = 'X'; // お邪魔マスの識別子
+    let placed = 0;
+    while (placed < 3) {
+      const col = Math.floor(Math.random() * 10);
+      const row = 3 + Math.floor(Math.random() * 17); // 上3行を除く
+      if (!room.board[row][col]) {
+        room.board[row][col] = 'X';
+        placed++;
+      }
     }
   }
   room.currentTurn = 1 - room.currentTurn;
