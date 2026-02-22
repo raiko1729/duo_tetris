@@ -83,7 +83,7 @@ function startTurnTimer(room) {
 function nextTurn(room) {
   room.turnCount++;
   if (room.turnCount % 3 === 0) {
-    // 一番上にあるブロックの行を探す
+    // 一番上にあるブロックの行を探す（お邪魔マス除く）
     let topRow = 19;
     for (let r = 0; r < 20; r++) {
       if (room.board[r].some(cell => cell !== 0 && cell !== 'X')) {
@@ -91,14 +91,13 @@ function nextTurn(room) {
         break;
       }
     }
-    // topRowから上3行（topRow-3 〜 topRow-1）の範囲でランダム2マス
+    // topRow以下の空きマスからランダム2つを埋める
     const candidates = [];
-    for (let r = Math.max(0, topRow - 3); r < topRow; r++) {
+    for (let r = topRow; r < 20; r++) {
       for (let c = 0; c < 10; c++) {
         if (!room.board[r][c]) candidates.push([r, c]);
       }
     }
-    // シャッフルして2つ選ぶ
     for (let i = candidates.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
