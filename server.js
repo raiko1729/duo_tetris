@@ -224,8 +224,25 @@ io.on('connection', (socket) => {
       io.to(room.roomId).emit('gameOver', { scores: room.scores, board: room.board });
       return;
     }
-
-    nextTurn(room);
+    
+    // ライン消去したら同じプレイヤーのターン継続
+    if (linesCleared > 0) {
+      const nextPiece = getNextPiece(room);
+      const previewPiece = room.pieceQueue[room.pieceIndex];
+      io.to(room.roomId).emit('turnChanged', {
+        currentTurn: room.currentTurn,
+        activePlayerId: room.players[room.currentTurn],
+        currentPiece: nextPiece,
+        previewPiece,
+        board: room.board,
+        scores: room.scores,
+        linesCleared: room.lastLinesCleared || 0,
+        turnTimeLimit: room.turnTimeLimit,
+      });
+      startTurnTimer(room);
+    } else {
+      nextTurn(room);
+    }
   });
 
   socket.on('disconnect', () => {
