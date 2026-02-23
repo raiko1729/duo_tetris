@@ -208,6 +208,14 @@ io.on('connection', (socket) => {
     room.lastLinesCleared = linesCleared;
     room.scores[socket.data.playerIndex] += SCORES[linesCleared] || 0;
 
+    // 1500点達成で終了
+    const winner = room.scores.findIndex(s => s >= 1500);
+    if (winner !== -1) {
+      room.gameOver = true;
+      io.to(room.roomId).emit('gameWin', { winner, scores: room.scores, board: room.board });
+      return;
+    }
+
     // ゲームオーバー判定（一番上の行にブロックがあるか）
     const isGameOver = room.board[0].some(cell => cell !== 0);
 

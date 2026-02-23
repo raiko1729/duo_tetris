@@ -27,6 +27,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     min-height: 100vh;
     min-height: 100dvh;
     overflow-x: hidden;
@@ -596,34 +597,31 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === ' ') { e.preventDefault(); handleAction('hard'); }
 });
 
-// タッチボタン
-document.getElementById('btn-left').addEventListener('touchstart', e => { e.preventDefault(); handleAction('left'); }, { passive: false });
-document.getElementById('btn-right').addEventListener('touchstart', e => { e.preventDefault(); handleAction('right'); }, { passive: false });
-document.getElementById('btn-down').addEventListener('touchstart', e => { e.preventDefault(); handleAction('down'); }, { passive: false });
-document.getElementById('btn-rotate').addEventListener('touchstart', e => { e.preventDefault(); handleAction('rotate'); }, { passive: false });
-document.getElementById('btn-hard').addEventListener('touchstart', e => { e.preventDefault(); handleAction('hard'); }, { passive: false });
-
-// PCでもクリック対応
-['left','right','down','rotate','hard'].forEach(a => {
-  document.getElementById('btn-' + (a === 'rotate' ? 'rotate' : a)).addEventListener('click', () => handleAction(a));
-});
-
-// 長押し対応（左右下）
+// 長押し対応
 let repeatTimer = null;
 function startRepeat(action) {
+  stopRepeat();
   handleAction(action);
   repeatTimer = setInterval(() => handleAction(action), 120);
 }
-function stopRepeat() { clearInterval(repeatTimer); }
+function stopRepeat() { clearInterval(repeatTimer); repeatTimer = null; }
 
+// 左右下：長押し対応
 ['left','right','down'].forEach(a => {
   const btn = document.getElementById('btn-' + a);
   btn.addEventListener('touchstart', e => { e.preventDefault(); startRepeat(a); }, { passive: false });
-  btn.addEventListener('touchend', stopRepeat);
+  btn.addEventListener('touchend', e => { e.preventDefault(); stopRepeat(); }, { passive: false });
   btn.addEventListener('touchcancel', stopRepeat);
   btn.addEventListener('mousedown', () => startRepeat(a));
   btn.addEventListener('mouseup', stopRepeat);
   btn.addEventListener('mouseleave', stopRepeat);
+});
+
+// 回転・ハードドロップ：1回だけ
+['rotate','hard'].forEach(a => {
+  const btn = document.getElementById('btn-' + a);
+  btn.addEventListener('touchstart', e => { e.preventDefault(); handleAction(a); }, { passive: false });
+  btn.addEventListener('mousedown', () => handleAction(a));
 });
 
 let inactivityTimer = null;
@@ -682,6 +680,13 @@ function connect() {
   socket.on('gameOver', ({ scores, board: finalBoard }) => {
     board = finalBoard; drawBoard();
     showOverlay('GAME OVER', `YOU: ${scores[myIndex]}  OPP: ${scores[1-myIndex]}`);
+  });
+
+  socket.on('gameWin', ({ winner, scores, board: finalBoard }) => {
+    board = finalBoard;
+    drawBoard();
+    const iWon = winner === myIndex;
+    showOverlay(iWon ? 'YOU WIN' : 'YOU LOSE', `YOU: ${scores[myIndex]}  OPP: ${scores[1-myIndex]}`);
   });
 
   socket.on('opponentLeft', () => { showOverlay('OPPONENT LEFT', 'The other player disconnected.'); });
