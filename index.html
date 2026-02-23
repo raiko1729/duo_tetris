@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>DUO TETRIS</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <style>
@@ -16,10 +16,9 @@
     --p2: #ff2d78;
     --accent: #f5c400;
     --text: #c0c0d0;
-    --grid: #16161f;
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
   body {
     background: var(--bg);
@@ -28,9 +27,9 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     min-height: 100vh;
-    overflow: hidden;
+    min-height: 100dvh;
+    overflow-x: hidden;
   }
 
   body::before {
@@ -41,28 +40,37 @@
       repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.015) 40px),
       repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.015) 40px);
     pointer-events: none;
+    z-index: 0;
   }
 
   h1 {
     font-family: 'Orbitron', sans-serif;
-    font-size: 2rem;
+    font-size: clamp(1.2rem, 5vw, 2rem);
     font-weight: 900;
     letter-spacing: 0.3em;
-    margin-bottom: 1.5rem;
+    padding: 1rem 0 0.5rem;
     background: linear-gradient(90deg, var(--p1), var(--p2));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: none;
   }
 
-  #lobby, #game {
+  /* ========== ロビー ========== */
+  #lobby {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 1rem;
+    padding: 1rem;
+    width: 100%;
+    max-width: 400px;
   }
 
-  #game { display: none; flex-direction: row; gap: 2rem; align-items: flex-start; }
+  #lobby p {
+    color: #666;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-align: center;
+  }
 
   button {
     font-family: 'Share Tech Mono', monospace;
@@ -75,60 +83,54 @@
     letter-spacing: 0.2em;
     text-transform: uppercase;
     transition: all 0.2s;
+    touch-action: manipulation;
   }
-  button:hover {
+  button:active {
     background: var(--p1);
     color: var(--bg);
   }
 
   #status {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--accent);
     letter-spacing: 0.1em;
-    min-height: 1.5rem;
+    min-height: 1.2rem;
+    text-align: center;
   }
 
-  /* ゲーム画面レイアウト */
-  .side-panel {
-    display: flex;
+  #room-code-display { text-align: center; }
+
+  /* ========== ゲーム画面 ========== */
+  #game {
+    display: none;
     flex-direction: column;
-    gap: 1rem;
-    min-width: 120px;
+    align-items: center;
+    width: 100%;
+    gap: 0;
   }
 
-  .panel-box {
+  /* 上部ステータスバー */
+  #status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 360px;
+    padding: 0.4rem 0.75rem;
     background: var(--panel);
-    border: 1px solid var(--border);
-    padding: 0.75rem;
+    border-bottom: 1px solid var(--border);
   }
 
-  .panel-label {
-    font-size: 0.65rem;
-    letter-spacing: 0.15em;
-    color: #666;
-    margin-bottom: 0.5rem;
-    text-transform: uppercase;
-  }
+  .score-block { text-align: center; }
+  .score-label { font-size: 0.55rem; color: #555; letter-spacing: 0.1em; }
+  .score-val { font-family: 'Orbitron', sans-serif; font-size: 1rem; color: var(--accent); }
+  .score-val.opp { color: #888; font-size: 0.85rem; }
 
-  .panel-value {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 1.4rem;
-    color: var(--accent);
-  }
-
-  /* 盤面 */
-  canvas {
-    display: block;
-    border: 1px solid var(--border);
-    image-rendering: pixelated;
-  }
-
-  /* ターン表示 */
   #turn-indicator {
     font-family: 'Orbitron', sans-serif;
-    font-size: 0.8rem;
-    letter-spacing: 0.15em;
-    padding: 0.5rem 1rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    padding: 0.3rem 0.6rem;
     border: 1px solid;
     text-align: center;
     transition: all 0.3s;
@@ -136,7 +138,7 @@
   #turn-indicator.my-turn {
     border-color: var(--p1);
     color: var(--p1);
-    box-shadow: 0 0 12px rgba(0,245,255,0.3);
+    box-shadow: 0 0 8px rgba(0,245,255,0.3);
   }
   #turn-indicator.opponent-turn {
     border-color: var(--p2);
@@ -146,9 +148,9 @@
   /* タイマーバー */
   #timer-bar-wrap {
     width: 100%;
-    height: 4px;
+    max-width: 360px;
+    height: 3px;
     background: var(--border);
-    margin-top: 4px;
   }
   #timer-bar {
     height: 100%;
@@ -157,18 +159,103 @@
     width: 100%;
   }
 
-  /* 次のミノプレビュー */
-  #preview-canvas {
-    border: 1px solid var(--border);
-    display: block;
+  /* 盤面エリア */
+  #board-area {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.4rem 0.5rem;
   }
 
-  /* オーバーレイ */
+  canvas {
+    display: block;
+    border: 1px solid var(--border);
+    image-rendering: pixelated;
+  }
+
+  /* サイドパネル（盤面右） */
+  #side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 70px;
+  }
+
+  .panel-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 0.5rem;
+  }
+
+  .panel-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.12em;
+    color: #555;
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+  }
+
+  /* ========== 操作ボタン ========== */
+  #controls {
+    width: 100%;
+    max-width: 360px;
+    padding: 0.5rem;
+    display: grid;
+    grid-template-areas:
+      ". rotate ."
+      "left drop right"
+      ". hard .";
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  .ctrl-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2rem;
+    padding: 0;
+    height: 56px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.1s;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .ctrl-btn:active {
+    background: #1e1e2e;
+    color: var(--p1);
+    border-color: var(--p1);
+  }
+
+  #btn-rotate { grid-area: rotate; }
+  #btn-left   { grid-area: left; }
+  #btn-down   { grid-area: drop; }
+  #btn-right  { grid-area: right; }
+  #btn-hard   {
+    grid-area: hard;
+    background: rgba(0,245,255,0.05);
+    border-color: var(--p1);
+    color: var(--p1);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    height: 44px;
+  }
+  #btn-hard:active {
+    background: var(--p1);
+    color: var(--bg);
+  }
+
+  /* ========== オーバーレイ ========== */
   #overlay {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(10,10,15,0.85);
+    background: rgba(10,10,15,0.9);
     align-items: center;
     justify-content: center;
     flex-direction: column;
@@ -178,29 +265,30 @@
   #overlay.active { display: flex; }
   #overlay h2 {
     font-family: 'Orbitron', sans-serif;
-    font-size: 2rem;
+    font-size: 1.8rem;
     color: var(--accent);
   }
-  #overlay p { color: var(--text); letter-spacing: 0.1em; }
+  #overlay p { color: var(--text); letter-spacing: 0.1em; text-align: center; padding: 0 1rem; }
 </style>
 </head>
 <body>
 
 <h1>DUO TETRIS</h1>
 
+<!-- ロビー -->
 <div id="lobby">
-  <p style="color:#666; font-size:0.85rem; letter-spacing:0.1em;">交互に1ミノずつ操作する 蹴落とし合いテトリス</p>
+  <p>交互に1ミノずつ操作する 蹴落とし合いテトリス</p>
   <a href="https://github.com/raiko1729/duo_tetris#readme" target="_blank"
     style="color:#666; font-size:0.75rem; letter-spacing:0.1em; text-decoration:none; border-bottom: 1px solid #333;">
     遊び方 →
   </a>
   <button id="btn-create">ルームを作る</button>
-  <div id="room-code-display" style="display:none; text-align:center;">
+  <div id="room-code-display" style="display:none;">
     <div style="color:#666; font-size:0.7rem; letter-spacing:0.15em; margin-bottom:0.3rem;">ROOM CODE</div>
     <div id="room-code-text" style="font-family:'Orbitron',sans-serif; font-size:2rem; color:var(--accent); letter-spacing:0.3em;"></div>
     <div style="color:#666; font-size:0.75rem; margin-top:0.3rem;">友達にこのコードを伝えてください</div>
   </div>
-  <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.5rem;">
+  <div style="display:flex; gap:0.5rem; align-items:center;">
     <input id="input-code" type="text" maxlength="4" placeholder="CODE"
       style="font-family:'Orbitron',monospace; font-size:1.2rem; letter-spacing:0.3em; width:100px;
              background:transparent; border:2px solid var(--border); color:var(--accent);
@@ -210,45 +298,48 @@
   <div id="status"></div>
 </div>
 
+<!-- ゲーム画面 -->
 <div id="game">
-  <div class="side-panel">
-    <div class="panel-box">
-      <div class="panel-label">SCORE</div>
-      <div style="font-size:0.75rem; color:#666; margin-bottom:2px;">YOU</div>
-      <div class="panel-value" id="score-me">0</div>
-      <div style="font-size:0.75rem; color:#666; margin-top:6px; margin-bottom:2px;">OPP</div>
-      <div class="panel-value" id="score-opp" style="font-size:1rem;">0</div>
+  <!-- ステータスバー -->
+  <div id="status-bar">
+    <div class="score-block">
+      <div class="score-label">YOU</div>
+      <div class="score-val" id="score-me">0</div>
     </div>
-    <div class="panel-box">
-      <div class="panel-label">YOU</div>
-      <div id="player-label" style="font-size:0.85rem; color: var(--p1)">P1</div>
+    <div id="turn-indicator" class="opponent-turn">WAITING</div>
+    <div class="score-block">
+      <div class="score-label">OPP</div>
+      <div class="score-val opp" id="score-opp">0</div>
     </div>
-    <div class="panel-box">
-      <div class="panel-label">TURN</div>
-      <div id="turn-indicator" class="opponent-turn">WAITING</div>
-      <div id="timer-bar-wrap"><div id="timer-bar"></div></div>
+  </div>
+  <div id="timer-bar-wrap"><div id="timer-bar"></div></div>
+
+  <!-- 盤面 + サイドパネル -->
+  <div id="board-area">
+    <canvas id="board-canvas"></canvas>
+    <div id="side-panel">
+      <div class="panel-box">
+        <div class="panel-label">YOU</div>
+        <div id="player-label" style="font-size:0.8rem; color:var(--p1)">P1</div>
+      </div>
+      <div class="panel-box">
+        <div class="panel-label">NEXT</div>
+        <canvas id="preview-canvas" width="70" height="70"></canvas>
+      </div>
     </div>
   </div>
 
-  <div>
-    <canvas id="board-canvas" width="300" height="600"></canvas>
-  </div>
-
-  <div class="side-panel">
-    <div class="panel-box">
-      <div class="panel-label">NEXT</div>
-      <canvas id="preview-canvas" width="100" height="100"></canvas>
-    </div>
-    <div class="panel-box" style="font-size:0.7rem; color:#555; line-height:1.8">
-      <div class="panel-label">CONTROLS</div>
-      ← → &nbsp; 移動<br>
-      ↑ &nbsp;&nbsp;&nbsp; 回転<br>
-      ↓ &nbsp;&nbsp;&nbsp; ソフトドロップ<br>
-      SPACE ハードドロップ
-    </div>
+  <!-- 操作ボタン -->
+  <div id="controls">
+    <button class="ctrl-btn" id="btn-rotate">↑</button>
+    <button class="ctrl-btn" id="btn-left">←</button>
+    <button class="ctrl-btn" id="btn-down">↓</button>
+    <button class="ctrl-btn" id="btn-right">→</button>
+    <button class="ctrl-btn" id="btn-hard">HARD DROP</button>
   </div>
 </div>
 
+<!-- オーバーレイ -->
 <div id="overlay">
   <h2 id="overlay-title">GAME OVER</h2>
   <p id="overlay-msg"></p>
@@ -256,28 +347,23 @@
 </div>
 
 <script>
-// ========== 定数 ==========
 // ========== 効果音 ==========
 let audioCtx = null;
-
 function getAudioCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return audioCtx;
 }
-
 function playSound(type) {
   const ctx = getAudioCtx();
   const o = ctx.createOscillator();
   const g = ctx.createGain();
-  o.connect(g);
-  g.connect(ctx.destination);
+  o.connect(g); g.connect(ctx.destination);
 
   if (type === 'move') {
     o.frequency.setValueAtTime(220, ctx.currentTime);
     g.gain.setValueAtTime(0.2, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
     o.start(); o.stop(ctx.currentTime + 0.05);
-
   } else if (type === 'drop') {
     o.type = 'square';
     o.frequency.setValueAtTime(150, ctx.currentTime);
@@ -285,44 +371,34 @@ function playSound(type) {
     g.gain.setValueAtTime(0.4, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
     o.start(); o.stop(ctx.currentTime + 0.15);
-
   } else if (type === 'clear') {
     [523, 659, 784, 1047].forEach((freq, i) => {
-      const o2 = ctx.createOscillator();
-      const g2 = ctx.createGain();
+      const o2 = ctx.createOscillator(), g2 = ctx.createGain();
       o2.connect(g2); g2.connect(ctx.destination);
       o2.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.07);
       g2.gain.setValueAtTime(0.4, ctx.currentTime + i * 0.07);
       g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.07 + 0.15);
-      o2.start(ctx.currentTime + i * 0.07);
-      o2.stop(ctx.currentTime + i * 0.07 + 0.15);
-    });
-    return;
-
+      o2.start(ctx.currentTime + i * 0.07); o2.stop(ctx.currentTime + i * 0.07 + 0.15);
+    }); return;
   } else if (type === 'gameover') {
     [400, 300, 200, 100].forEach((freq, i) => {
-      const o2 = ctx.createOscillator();
-      const g2 = ctx.createGain();
-      o2.type = 'sawtooth';
-      o2.connect(g2); g2.connect(ctx.destination);
+      const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+      o2.type = 'sawtooth'; o2.connect(g2); g2.connect(ctx.destination);
       o2.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.15);
       g2.gain.setValueAtTime(0.4, ctx.currentTime + i * 0.15);
       g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.2);
-      o2.start(ctx.currentTime + i * 0.15);
-      o2.stop(ctx.currentTime + i * 0.15 + 0.2);
-    });
-    return;
+      o2.start(ctx.currentTime + i * 0.15); o2.stop(ctx.currentTime + i * 0.15 + 0.2);
+    }); return;
   }
 }
+
+// ========== 定数 ==========
 const COLS = 10, ROWS = 20;
-const CELL = 30;
 const COLORS = {
   I: '#00f5ff', O: '#f5c400', T: '#c800ff',
   S: '#00ff88', Z: '#ff2d78', J: '#0066ff', L: '#ff8c00',
-  ghost: 'rgba(255,255,255,0.12)',
-  X: '#555555',
+  ghost: 'rgba(255,255,255,0.12)', X: '#555555',
 };
-
 const SHAPES = {
   I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
   O: [[1,1],[1,1]],
@@ -333,151 +409,136 @@ const SHAPES = {
   L: [[0,0,1],[1,1,1],[0,0,0]],
 };
 
-// ========== 状態 ==========
-let socket;
-let myIndex = -1;
-let isMyTurn = false;
-let board = [];
-let currentPiece = null; // { type, x, y, rotation }
-let turnTimeLimit = 15000;
-let turnStartTime = 0;
-let timerRAF = null;
-let opponentGhostPiece = null;
-
-// ========== Canvas ==========
+// ========== Canvas サイズを動的に決定 ==========
 const boardCanvas = document.getElementById('board-canvas');
 const bctx = boardCanvas.getContext('2d');
 const previewCanvas = document.getElementById('preview-canvas');
 const pctx = previewCanvas.getContext('2d');
 
-// ========== ミノ操作ユーティリティ ==========
+function calcCellSize() {
+  // 画面幅から盤面サイズを決める（サイドパネル80px + 余白を引く）
+  const maxW = Math.min(window.innerWidth - 100, 300);
+  return Math.floor(maxW / COLS);
+}
+
+let CELL = calcCellSize();
+
+function resizeCanvas() {
+  CELL = calcCellSize();
+  boardCanvas.width = COLS * CELL;
+  boardCanvas.height = ROWS * CELL;
+  drawBoard();
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ========== 状態 ==========
+let socket, myIndex = -1, isMyTurn = false, board = [];
+let currentPiece = null;
+let turnTimeLimit = 15000, turnStartTime = 0, timerRAF = null;
+let opponentGhostPiece = null;
+
+// ========== ミノユーティリティ ==========
 function getShape(type, rotation) {
   let s = SHAPES[type];
   for (let i = 0; i < rotation; i++) s = rotateMatrix(s);
   return s;
 }
-
 function rotateMatrix(matrix) {
   const N = matrix.length;
   return matrix[0].map((_, c) => matrix.map((_, r) => matrix[N-1-r][c]));
 }
-
 function isValid(shape, x, y, b) {
-  for (let r = 0; r < shape.length; r++) {
+  for (let r = 0; r < shape.length; r++)
     for (let c = 0; c < shape[r].length; c++) {
       if (!shape[r][c]) continue;
       const nr = r + y, nc = c + x;
       if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) return false;
       if (b[nr][nc]) return false;
     }
-  }
   return true;
 }
-
 function hardDropY(piece, b) {
   const shape = getShape(piece.type, piece.rotation);
   let y = piece.y;
   while (isValid(shape, piece.x, y + 1, b)) y++;
   return y;
 }
-
 function placePiece(piece, b) {
   const shape = getShape(piece.type, piece.rotation);
   const nb = b.map(r => [...r]);
   const dy = hardDropY(piece, b);
-  for (let r = 0; r < shape.length; r++) {
-    for (let c = 0; c < shape[r].length; c++) {
+  for (let r = 0; r < shape.length; r++)
+    for (let c = 0; c < shape[r].length; c++)
       if (shape[r][c]) nb[dy + r][piece.x + c] = piece.type;
-    }
-  }
   return nb;
 }
-
-function spawnPiece(type) {
-  return { type, x: 3, y: 0, rotation: 0 };
-}
+function spawnPiece(type) { return { type, x: 3, y: 0, rotation: 0 }; }
 
 // ========== 描画 ==========
 function drawBoard() {
   bctx.fillStyle = '#0a0a0f';
   bctx.fillRect(0, 0, boardCanvas.width, boardCanvas.height);
-
-  // グリッド線
-  bctx.strokeStyle = '#16161f';
-  bctx.lineWidth = 1;
+  bctx.strokeStyle = '#16161f'; bctx.lineWidth = 1;
   for (let r = 0; r <= ROWS; r++) {
-    bctx.beginPath(); bctx.moveTo(0, r * CELL); bctx.lineTo(COLS * CELL, r * CELL); bctx.stroke();
+    bctx.beginPath(); bctx.moveTo(0, r*CELL); bctx.lineTo(COLS*CELL, r*CELL); bctx.stroke();
   }
   for (let c = 0; c <= COLS; c++) {
-    bctx.beginPath(); bctx.moveTo(c * CELL, 0); bctx.lineTo(c * CELL, ROWS * CELL); bctx.stroke();
+    bctx.beginPath(); bctx.moveTo(c*CELL, 0); bctx.lineTo(c*CELL, ROWS*CELL); bctx.stroke();
   }
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (board[r]?.[c]) drawCell(bctx, c, r, COLORS[board[r][c]] || '#fff');
 
-  // 固定ブロック
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      if (board[r] && board[r][c]) {
-        drawCell(bctx, c, r, COLORS[board[r][c]] || '#fff');
-      }
-    }
-  }
-
-  // 相手のゴースト表示
   if (opponentGhostPiece && !isMyTurn) {
     const shape = getShape(opponentGhostPiece.type, opponentGhostPiece.rotation);
     const ghostY = hardDropY(opponentGhostPiece, board);
     for (let r = 0; r < shape.length; r++)
       for (let c = 0; c < shape[r].length; c++)
-        if (shape[r][c]) drawCell(bctx, opponentGhostPiece.x + c, ghostY + r, 'rgba(255,45,120,0.25)');
+        if (shape[r][c]) drawCell(bctx, opponentGhostPiece.x+c, ghostY+r, 'rgba(255,45,120,0.25)');
   }
-
-  // 現在のミノ（自分のターンのみ表示）
   if (currentPiece && isMyTurn) {
     const shape = getShape(currentPiece.type, currentPiece.rotation);
     const ghostY = hardDropY(currentPiece, board);
-
-    // ゴースト
     for (let r = 0; r < shape.length; r++)
       for (let c = 0; c < shape[r].length; c++)
-        if (shape[r][c]) drawCell(bctx, currentPiece.x + c, ghostY + r, COLORS.ghost);
-
-    // 実体
+        if (shape[r][c]) drawCell(bctx, currentPiece.x+c, ghostY+r, COLORS.ghost);
     for (let r = 0; r < shape.length; r++)
       for (let c = 0; c < shape[r].length; c++)
-        if (shape[r][c]) drawCell(bctx, currentPiece.x + c, currentPiece.y + r, COLORS[currentPiece.type]);
+        if (shape[r][c]) drawCell(bctx, currentPiece.x+c, currentPiece.y+r, COLORS[currentPiece.type]);
   }
 }
 
 function drawCell(ctx, c, r, color) {
   ctx.fillStyle = color;
-  ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
-  // ハイライト
+  ctx.fillRect(c*CELL+1, r*CELL+1, CELL-2, CELL-2);
   ctx.fillStyle = 'rgba(255,255,255,0.15)';
-  ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, 4);
+  ctx.fillRect(c*CELL+1, r*CELL+1, CELL-2, 4);
 }
 
 function drawPreview(type) {
+  const size = previewCanvas.width;
   pctx.fillStyle = '#12121a';
-  pctx.fillRect(0, 0, 100, 100);
+  pctx.fillRect(0, 0, size, size);
   if (!type) return;
   const shape = SHAPES[type];
-  const color = COLORS[type];
-  const cellSize = 20;
+  const cellSize = Math.floor(size / 5);
   const offX = Math.floor((5 - shape[0].length) / 2);
   const offY = Math.floor((5 - shape.length) / 2);
   for (let r = 0; r < shape.length; r++)
     for (let c = 0; c < shape[r].length; c++)
       if (shape[r][c]) {
-        pctx.fillStyle = color;
-        pctx.fillRect((offX + c) * cellSize + 1, (offY + r) * cellSize + 1, cellSize - 2, cellSize - 2);
+        pctx.fillStyle = COLORS[type];
+        pctx.fillRect((offX+c)*cellSize+1, (offY+r)*cellSize+1, cellSize-2, cellSize-2);
       }
 }
 
-// ========== タイマーUI ==========
+// ========== タイマー ==========
 function startTimerUI() {
   turnStartTime = Date.now();
   function tick() {
-    const elapsed = Date.now() - turnStartTime;
-    const ratio = Math.max(0, 1 - elapsed / turnTimeLimit);
+    const ratio = Math.max(0, 1 - (Date.now() - turnStartTime) / turnTimeLimit);
     const bar = document.getElementById('timer-bar');
     bar.style.width = (ratio * 100) + '%';
     bar.style.background = ratio > 0.3 ? 'var(--p1)' : 'var(--p2)';
@@ -487,69 +548,88 @@ function startTimerUI() {
   tick();
 }
 
-// ========== ターン更新UI ==========
 function updateTurnUI() {
-  const indicator = document.getElementById('turn-indicator');
-  if (isMyTurn) {
-    indicator.textContent = 'YOUR TURN';
-    indicator.className = 'my-turn';
-  } else {
-    indicator.textContent = 'OPPONENT';
-    indicator.className = 'opponent-turn';
-  }
+  const ind = document.getElementById('turn-indicator');
+  if (isMyTurn) { ind.textContent = 'YOUR TURN'; ind.className = 'my-turn'; }
+  else { ind.textContent = 'OPPONENT'; ind.className = 'opponent-turn'; }
   startTimerUI();
 }
 
-// ========== キーボード操作 ==========
-document.addEventListener('keydown', (e) => {
+// ========== 操作 ==========
+function handleAction(action) {
   if (!isMyTurn || !currentPiece) return;
   const shape = getShape(currentPiece.type, currentPiece.rotation);
 
-  if (e.key === 'ArrowLeft') {
-    if (isValid(shape, currentPiece.x - 1, currentPiece.y, board)) currentPiece.x--;
-  } else if (e.key === 'ArrowRight') {
-    if (isValid(shape, currentPiece.x + 1, currentPiece.y, board)) currentPiece.x++;
-  } else if (e.key === 'ArrowDown') {
-    if (isValid(shape, currentPiece.x, currentPiece.y + 1, board)) currentPiece.y++;
-  } else if (e.key === 'ArrowUp') {
+  if (action === 'left') {
+    if (isValid(shape, currentPiece.x-1, currentPiece.y, board)) currentPiece.x--;
+  } else if (action === 'right') {
+    if (isValid(shape, currentPiece.x+1, currentPiece.y, board)) currentPiece.x++;
+  } else if (action === 'down') {
+    if (isValid(shape, currentPiece.x, currentPiece.y+1, board)) currentPiece.y++;
+  } else if (action === 'rotate') {
     const newRot = (currentPiece.rotation + 1) % 4;
     const newShape = getShape(currentPiece.type, newRot);
     if (isValid(newShape, currentPiece.x, currentPiece.y, board)) currentPiece.rotation = newRot;
-  } else if (e.key === ' ') {
-    e.preventDefault();
-    doHardDrop();
-    return;
+  } else if (action === 'hard') {
+    doHardDrop(); return;
   }
+
   playSound('move');
   if (isMyTurn && currentPiece) {
-    socket.emit('pieceMove', {
-      type: currentPiece.type,
-      x: currentPiece.x,
-      y: currentPiece.y,
-      rotation: currentPiece.rotation,
-    });
+    socket.emit('pieceMove', { type: currentPiece.type, x: currentPiece.x, y: currentPiece.y, rotation: currentPiece.rotation });
   }
   drawBoard();
 
-  // 着地判定：これ以上下がれないなら0.5秒タイマー起動
   if (isMyTurn && currentPiece) {
-    const shape = getShape(currentPiece.type, currentPiece.rotation);
-    const isLanded = !isValid(shape, currentPiece.x, currentPiece.y + 1, board);
-    if (isLanded) {
-      resetInactivityTimer();
-    } else {
-      clearTimeout(inactivityTimer); // 浮いてる間はタイマーリセット
-    }
+    const s = getShape(currentPiece.type, currentPiece.rotation);
+    if (!isValid(s, currentPiece.x, currentPiece.y+1, board)) resetInactivityTimer();
+    else clearTimeout(inactivityTimer);
   }
+}
+
+// キーボード
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') handleAction('left');
+  else if (e.key === 'ArrowRight') handleAction('right');
+  else if (e.key === 'ArrowDown') handleAction('down');
+  else if (e.key === 'ArrowUp') handleAction('rotate');
+  else if (e.key === ' ') { e.preventDefault(); handleAction('hard'); }
+});
+
+// タッチボタン
+document.getElementById('btn-left').addEventListener('touchstart', e => { e.preventDefault(); handleAction('left'); }, { passive: false });
+document.getElementById('btn-right').addEventListener('touchstart', e => { e.preventDefault(); handleAction('right'); }, { passive: false });
+document.getElementById('btn-down').addEventListener('touchstart', e => { e.preventDefault(); handleAction('down'); }, { passive: false });
+document.getElementById('btn-rotate').addEventListener('touchstart', e => { e.preventDefault(); handleAction('rotate'); }, { passive: false });
+document.getElementById('btn-hard').addEventListener('touchstart', e => { e.preventDefault(); handleAction('hard'); }, { passive: false });
+
+// PCでもクリック対応
+['left','right','down','rotate','hard'].forEach(a => {
+  document.getElementById('btn-' + (a === 'rotate' ? 'rotate' : a)).addEventListener('click', () => handleAction(a));
+});
+
+// 長押し対応（左右下）
+let repeatTimer = null;
+function startRepeat(action) {
+  handleAction(action);
+  repeatTimer = setInterval(() => handleAction(action), 120);
+}
+function stopRepeat() { clearInterval(repeatTimer); }
+
+['left','right','down'].forEach(a => {
+  const btn = document.getElementById('btn-' + a);
+  btn.addEventListener('touchstart', e => { e.preventDefault(); startRepeat(a); }, { passive: false });
+  btn.addEventListener('touchend', stopRepeat);
+  btn.addEventListener('touchcancel', stopRepeat);
+  btn.addEventListener('mousedown', () => startRepeat(a));
+  btn.addEventListener('mouseup', stopRepeat);
+  btn.addEventListener('mouseleave', stopRepeat);
 });
 
 let inactivityTimer = null;
-
 function resetInactivityTimer() {
   clearTimeout(inactivityTimer);
-  inactivityTimer = setTimeout(() => {
-    if (isMyTurn && currentPiece) doHardDrop();
-  }, 500);
+  inactivityTimer = setTimeout(() => { if (isMyTurn && currentPiece) doHardDrop(); }, 500);
 }
 
 function doHardDrop() {
@@ -557,8 +637,7 @@ function doHardDrop() {
   playSound('drop');
   clearTimeout(inactivityTimer);
   const newBoard = placePiece(currentPiece, board);
-  isMyTurn = false;
-  currentPiece = null;
+  isMyTurn = false; currentPiece = null;
   socket.emit('piecePlaced', { board: newBoard });
   board = newBoard;
   drawBoard();
@@ -566,13 +645,9 @@ function doHardDrop() {
 
 // ========== Socket.io ==========
 function connect() {
-  const SERVER_URL = window.location.origin;
+  socket = io(window.location.origin);
 
-  socket = io(SERVER_URL);
-
-  socket.on('connect', () => {
-    document.getElementById('status').textContent = 'CONNECTED';
-  });
+  socket.on('connect', () => { document.getElementById('status').textContent = 'CONNECTED'; });
 
   socket.on('joined', ({ playerIndex, roomCode }) => {
     myIndex = playerIndex;
@@ -594,33 +669,24 @@ function connect() {
   socket.on('gameStart', (data) => {
     document.getElementById('lobby').style.display = 'none';
     document.getElementById('game').style.display = 'flex';
+    resizeCanvas();
     applyTurnData(data);
   });
 
-  socket.on('turnChanged', (data) => {
-    applyTurnData(data);
-  });
+  socket.on('turnChanged', (data) => { applyTurnData(data); });
 
   socket.on('turnTimeout', ({ playerIndex }) => {
-    if (playerIndex === myIndex && isMyTurn) {
-      doHardDrop();
-    }
+    if (playerIndex === myIndex && isMyTurn) doHardDrop();
   });
 
   socket.on('gameOver', ({ scores, board: finalBoard }) => {
-    board = finalBoard;
-    drawBoard();
-    showOverlay('GAME OVER', `YOU: ${scores[myIndex]}  OPP: ${scores[1 - myIndex]}`);
+    board = finalBoard; drawBoard();
+    showOverlay('GAME OVER', `YOU: ${scores[myIndex]}  OPP: ${scores[1-myIndex]}`);
   });
 
-  socket.on('opponentLeft', () => {
-    showOverlay('OPPONENT LEFT', 'The other player disconnected.');
-  });
-  
-  socket.on('opponentPieceMove', (data) => {
-    opponentGhostPiece = data;
-    drawBoard();
-  });
+  socket.on('opponentLeft', () => { showOverlay('OPPONENT LEFT', 'The other player disconnected.'); });
+
+  socket.on('opponentPieceMove', (data) => { opponentGhostPiece = data; drawBoard(); });
 }
 
 function applyTurnData(data) {
@@ -629,16 +695,11 @@ function applyTurnData(data) {
   turnTimeLimit = data.turnTimeLimit;
   isMyTurn = data.activePlayerId === socket.id;
   document.getElementById('score-me').textContent = data.scores[myIndex];
-  document.getElementById('score-opp').textContent = data.scores[1 - myIndex];
+  document.getElementById('score-opp').textContent = data.scores[1-myIndex];
   opponentGhostPiece = null;
 
-  if (isMyTurn) {
-    currentPiece = spawnPiece(data.currentPiece);
-    drawPreview(data.previewPiece);
-  } else {
-    currentPiece = null;
-    drawPreview(data.currentPiece); // 相手が操作中のミノをネクスト枠に表示
-  }
+  if (isMyTurn) { currentPiece = spawnPiece(data.currentPiece); drawPreview(data.previewPiece); }
+  else { currentPiece = null; drawPreview(data.currentPiece); }
 
   updateTurnUI();
   drawBoard();
@@ -655,28 +716,22 @@ function showOverlay(title, msg) {
 document.getElementById('btn-create').addEventListener('click', () => {
   document.getElementById('btn-create').disabled = true;
   document.getElementById('status').textContent = 'CONNECTING...';
-  connect();
-  socket.emit('createRoom');
+  connect(); socket.emit('createRoom');
 });
 
-// joined イベントでルームコード表示を追加
 document.getElementById('btn-join').addEventListener('click', () => {
   const code = document.getElementById('input-code').value.trim().toUpperCase();
   if (code.length !== 4) { document.getElementById('status').textContent = 'コードは4文字です'; return; }
   document.getElementById('btn-join').disabled = true;
   document.getElementById('status').textContent = 'CONNECTING...';
-  connect();
-  socket.emit('joinRoom', { code });
+  connect(); socket.emit('joinRoom', { code });
 });
 
-document.getElementById('btn-restart').addEventListener('click', () => {
-  location.reload();
-});
+document.getElementById('btn-restart').addEventListener('click', () => { location.reload(); });
 
 // 初期描画
 board = Array(20).fill(null).map(() => Array(10).fill(0));
-drawBoard();
-drawPreview(null);
+drawBoard(); drawPreview(null);
 </script>
 </body>
 </html>
