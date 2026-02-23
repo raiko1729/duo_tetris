@@ -427,11 +427,11 @@ function resizeCanvas() {
   CELL = calcCellSize();
   boardCanvas.width = COLS * CELL;
   boardCanvas.height = ROWS * CELL;
-  drawBoard();
+  if (board.length > 0) drawBoard();
 }
 
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+
 
 // ========== 状態 ==========
 let socket, myIndex = -1, isMyTurn = false, board = [];
@@ -730,8 +730,13 @@ document.getElementById('btn-join').addEventListener('click', () => {
 document.getElementById('btn-restart').addEventListener('click', () => { location.reload(); });
 
 // 初期描画
+// 初期描画
 board = Array(20).fill(null).map(() => Array(10).fill(0));
-drawBoard(); drawPreview(null);
+CELL = calcCellSize();
+boardCanvas.width = COLS * CELL;
+boardCanvas.height = ROWS * CELL;
+drawBoard();
+drawPreview(null);
 </script>
 </body>
 </html>
